@@ -1,7 +1,6 @@
 #include "ticktoucan.h"
 
 
-
 static TickToucan::TickToucan& instance()
 {
     static TickToucan inst;

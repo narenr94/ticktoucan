@@ -1,0 +1,51 @@
+/-----------------------timer impl--------------------------/
+
+extern "C" void SysTick_Handler() {
+  BareMetalScheduler::instance().tickISR();
+}
+
+// Pseudo-code; adapt to your HAL/SDK
+SysTick_Config(SystemCoreClock / 10);  // fire every 100 ms
+
+/-----------------scheduling memberfunction-----------------/
+
+// In your class header:
+class Blinker {
+public:
+  void toggle() {
+    // toggle your LED pin…
+  }
+
+  // static wrapper for scheduler
+  static void toggleTrampoline(void* ctx) {
+    static_cast<Blinker*>(ctx)->toggle();
+  }
+};
+
+// In your main.cpp:
+#include "baremetal_scheduler.hpp"
+
+int main() {
+  Blinker blink;
+  // Blink every 500 ms
+  BareMetalScheduler::instance()
+    .scheduleEvery(500,
+                   &Blinker::toggleTrampoline,
+                   &blink);
+
+  while (1) {
+    BareMetalScheduler::instance().dispatch();
+    // …other non-interrupt work…
+  }
+}
+
+
+/-----------------------One Shot example-------------------/
+
+void hello(void*) {
+  // one-time action
+}
+
+// schedule hello at tick=2000 (i.e. after 2 s)
+BareMetalScheduler::instance().scheduleAt(2000, &hello, nullptr);
+
