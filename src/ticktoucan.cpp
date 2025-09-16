@@ -1,35 +1,29 @@
+//ticktoucan.cpp
+
 #include "ticktoucan.h"
+#include "ticktoucan_platform.h"
 
-
-static TickToucan::TickToucan& instance()
+TickToucan::Task::Task()
 {
-    static TickToucan inst;
-    return inst;
+    active = false;
+    nextTick = 0;
+    interval = 0;
+    cb = nullptr;
+    ctx = nullptr;
+    ready = false;
+}
+
+
+TickToucan& TickToucan::instance()
+{
+  static TickToucan inst;
+  return inst;
 }
 
 void TickToucan::tickISR()
 {
-    ++currentTick_;
-    // Check each task slot
-    for (std::size_t i = 0; i < MAX_TASKS; ++i)
-    {
-        Task& t = tasks_[i];
-        if (!t.active) continue;
-        if (currentTick_ >= t.nextTick)
-        {
-            t.ready = true;
-            if (t.interval > 0)
-            {
-                // schedule next fire
-                t.nextTick += t.interval;
-            }
-            else
-            {
-                // one-shot: deactivate
-                t.active = false;
-            }
-        }
-    }
+    incrementTick();
+    scheduleTask();    
 }
 
 void TickToucan::dispatch()
@@ -39,20 +33,22 @@ void TickToucan::dispatch()
         Task& t = tasks_[i];
         if (t.ready)
         {
+            uint32_t prim = ENTER_CRITICAL();
             t.ready = false;            // clear the flag
+            EXIT_CRITICAL(prim);
             t.cb(t.ctx);                // execute user callback
         }
     }
 }
 
-Handle TickToucan::scheduleAt(TickType absoluteTick, Callback cb, void* ctx = nullptr)
+TickToucan::Handle TickToucan::scheduleAt(TickType absoluteTick, Callback cb, void* ctx)
 {
     return addTask(absoluteTick, 0, cb, ctx);
 }
 
-Handle TickToucan::scheduleEvery(TickType interval, Callback cb, void* ctx = nullptr)
+TickToucan::Handle TickToucan::scheduleEvery(TickType interval, Callback cb, void* ctx, TickType t_offset)
 {
-    return addTask(currentTick_ + interval, interval, cb, ctx);
+    return addTask(now() + t_offset, interval, cb, ctx);
 }
 
 void TickToucan::cancel(Handle h)
@@ -78,13 +74,20 @@ TickToucan::TickToucan() : currentTick_(0)
     }
 }
 
+TickToucan::~TickToucan()
+{
+    platform_cleanup_tick_timer();
+}
+
 bool TickToucan::valid(Handle h) const 
 {
     return h.idx >= 0 && h.idx < static_cast<int>(MAX_TASKS);
 }
 
-Handle TickToucan::addTask(TickType next, TickType interval, Callback cb, void* ctx)
+TickToucan::Handle TickToucan::addTask(TickType next, TickType interval, Callback cb, void* ctx)
 {
+    CriticalGuard guard;
+
     for (std::size_t i = 0; i < MAX_TASKS; ++i)
     {
         Task& t = tasks_[i];
@@ -100,4 +103,45 @@ Handle TickToucan::addTask(TickType next, TickType interval, Callback cb, void* 
         }
     }
     return Handle{-1};  // no free slot
+}
+
+void TickToucan::incrementTick()
+{
+    ++currentTick_;
+}
+
+void TickToucan::scheduleTask()
+{
+    // Check each task slot
+    for (std::size_t i = 0; i < MAX_TASKS; ++i)
+    {
+        Task& t = tasks_[i];
+        if (!t.active) continue;
+        if (now() >= t.nextTick)
+        {
+            t.ready = true;
+            if (t.interval > 0)
+            {
+                // schedule next fire
+                t.nextTick += t.interval;
+            }
+            else
+            {
+                // one-shot: deactivate
+                t.active = false;
+            }
+        }
+    }
+}
+
+void TickToucan::init(uint32_t tick_ms)
+{
+    platform_setup_tick_timer(tick_ms, &TickToucan::tickTrampoline);
+
+    m_tick_ms = tick_ms;
+}
+
+void TickToucan::tickTrampoline()
+{
+    TickToucan::instance().tickISR();
 }

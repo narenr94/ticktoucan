@@ -5,7 +5,7 @@ extern "C" void SysTick_Handler() {
 }
 
 // Pseudo-code; adapt to your HAL/SDK
-SysTick_Config(SystemCoreClock / 10);  // fire every 100 ms
+SysTick_Config(SystemCoreClock / 1000);  // fire every 1 ms
 
 /-----------------scheduling memberfunction-----------------/
 
@@ -48,4 +48,38 @@ void hello(void*) {
 
 // schedule hello at tick=2000 (i.e. after 2 s)
 BareMetalScheduler::instance().scheduleAt(2000, &hello, nullptr);
+
+/--------------------ticktoucan_platform_stm32.cpp-----------------------/
+
+
+// ticktoucan_platform_stm32.cpp
+#include "ticktoucan_platform.hpp"
+#include "stm32f4xx.h"
+
+static void (*s_tickCb)() = nullptr;
+
+uint32_t platform_enter_critical() {
+  uint32_t prim = __get_PRIMASK();
+  __disable_irq();
+  return prim;
+}
+
+void platform_exit_critical(uint32_t primask) {
+  if ((primask & 1) == 0) __enable_irq();
+}
+
+void platform_setup_tick_timer(uint32_t tick_ms,
+                               void (*tickCb)())
+{
+  s_tickCb = tickCb;
+  // reload for tick_ms interval
+  uint32_t ticks_per_ms = SystemCoreClock / 1000U;
+  SysTick_Config(ticks_per_ms * tick_ms - 1U);
+}
+
+extern "C" void SysTick_Handler() {
+  if (s_tickCb) {
+    s_tickCb();
+  }
+}
 
