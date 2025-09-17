@@ -12,6 +12,8 @@ set(TT_PLATFORM_INC "../../../../include/platform_contracts")
 
 set(TT_SRC "../../../../src/")
 
+set(TT_HOME "../../../../")
+
 set(UTESTS_ROOT "../../")
 
 include_directories(${TT_PLATFORM_INC})
@@ -23,7 +25,7 @@ set(TEST_SOURCES    basic_tests_main.cpp
 
 set(TT_SOURCES ${TT_SRC}/ticktoucan.cpp)
 
-set(FAKE_SOURCES ${UTESTS_ROOT}/fakes/ticktoucan_platform.cpp)
+set(FAKE_SOURCES ${TT_HOME}/sim/ticktoucan_platform.cpp)
 
 add_executable(${EXEC_NAME}	${FAKE_SOURCES} ${TEST_SOURCES}	${TT_SOURCES})
 

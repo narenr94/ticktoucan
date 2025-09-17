@@ -43,3 +43,5 @@
 test/utest/build
 
 .vscode/
+
+build/
