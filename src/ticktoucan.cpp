@@ -41,14 +41,35 @@ void TickToucan::dispatch()
     }
 }
 
-TickToucan::Handle TickToucan::scheduleAt(TickType absoluteTick, Callback cb, void* ctx)
+TickToucan::Handle TickToucan::scheduleAt(TickType absolute_time_ms, Callback cb, void* ctx)
 {
-    return addTask(absoluteTick, 0, cb, ctx);
+    Handle ret;
+    if(!m_initialized)
+    {
+        ret.idx = -1;
+    }
+    else
+    {
+        ret = addTask(convertMsToTicks(absolute_time_ms), 0, cb, ctx);
+    }
+
+    return ret;
 }
 
-TickToucan::Handle TickToucan::scheduleEvery(TickType interval, Callback cb, void* ctx, TickType t_offset)
+TickToucan::Handle TickToucan::scheduleEvery(TickType interval_time_ms, Callback cb, void* ctx, TickType t_offset_ms)
 {
-    return addTask(now() + t_offset, interval, cb, ctx);
+    Handle ret;
+    if(!m_initialized)
+    {
+        ret.idx = -1;
+    }
+    else
+    {
+        ret = addTask(now() + convertMsToTicks(t_offset_ms), convertMsToTicks(interval_time_ms), cb, ctx);
+    }
+
+    return ret;
+    
 }
 
 void TickToucan::cancel(Handle h)
@@ -139,9 +160,23 @@ void TickToucan::init(uint32_t tick_ms)
     platform_setup_tick_timer(tick_ms, &TickToucan::tickTrampoline);
 
     m_tick_ms = tick_ms;
+
+    m_initialized = true;
 }
 
 void TickToucan::tickTrampoline()
 {
     TickToucan::instance().tickISR();
+}
+
+TickType TickToucan::convertMsToTicks(TickType t_ms)
+{
+    TickType ret = 0;
+
+    if(m_tick_ms)
+    {
+        ret = t_ms / m_tick_ms;
+    }
+
+    return ret;
 }

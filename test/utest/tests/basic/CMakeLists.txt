@@ -2,7 +2,7 @@ set(CMAKE_BUILD_TYPE Debug)
 
 include(GoogleTest)
 
-set(EXEC_NAME Setup_tests)
+set(EXEC_NAME Basic_tests)
 
 set(DEPS_INC "../../build/libs/include/")
 
@@ -18,8 +18,8 @@ include_directories(${TT_PLATFORM_INC})
 include_directories(${TT_INC})
 include_directories(${DEPS_INC})
 
-set(TEST_SOURCES    setup_tests_main.cpp
-	setup_tests.cpp)
+set(TEST_SOURCES    basic_tests_main.cpp
+	basic_tests.cpp)
 
 set(TT_SOURCES ${TT_SRC}/ticktoucan.cpp)
 
